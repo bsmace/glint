@@ -1,6 +1,8 @@
 import { autoUpdate, computePosition, flip, shift } from '@floating-ui/dom';
 import { render } from 'preact';
 
+import type { ChipAction } from './content/ai';
+import { createAI } from './content/ai';
 import { ChipBar } from './content/ui/ChipBar';
 import { createDetector } from './content/detector';
 
@@ -22,6 +24,16 @@ export default defineContentScript({
   main(ctx) {
     let host: HTMLElement | null = null;
     let stopAutoUpdate: (() => void) | null = null;
+    let generate: ((action: ChipAction, text: string) => Promise<string>) | null = null;
+
+    createAI().then((ai) => {
+      generate = (action, text) => ai.generate(action, text);
+      createDetector({
+        onAttach(input) {
+          mount(input);
+        },
+      });
+    });
 
     const mount = (anchor: HTMLElement) => {
       if (host) return;
@@ -40,7 +52,7 @@ export default defineContentScript({
       shadow.adoptedStyleSheets = [sheet];
       const inner = document.createElement('div');
       shadow.append(inner);
-      render(<ChipBar />, inner);
+      render(<ChipBar anchor={anchor} generate={generate!} />, inner);
 
       stopAutoUpdate = startAutoUpdate(anchor, host);
 
@@ -48,7 +60,6 @@ export default defineContentScript({
         host!.style.display = '';
         stopAutoUpdate = startAutoUpdate(anchor, host!);
       };
-
       const hide = () => {
         host!.style.display = 'none';
         stopAutoUpdate?.();
@@ -67,15 +78,6 @@ export default defineContentScript({
       }
     };
 
-    const det = createDetector({
-      onAttach(input) {
-        mount(input);
-      },
-    });
-
-    ctx.addEventListener('window:unload', () => {
-      det.destroy();
-      unmount();
-    });
+    ctx.addEventListener('window:unload', unmount);
   },
 });

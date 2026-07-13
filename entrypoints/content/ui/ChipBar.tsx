@@ -1,3 +1,10 @@
+import type { ChipAction } from '../ai';
+
+type Props = {
+  anchor: HTMLElement;
+  generate: (action: ChipAction, text: string) => Promise<string>;
+};
+
 const btn: Record<string, string> = {
   padding: '4px 10px',
   border: '1px solid #e0e0e0',
@@ -10,9 +17,36 @@ const btn: Record<string, string> = {
   lineHeight: '20px',
 };
 
-const chips = ['Improve', 'Concise', 'Add Context', 'Format'];
+const chips: { label: string; action: ChipAction }[] = [
+  { label: 'Improve', action: 'improve' },
+  { label: 'Concise', action: 'concise' },
+  { label: 'Add Context', action: 'addContext' },
+  { label: 'Format', action: 'format' },
+];
 
-export function ChipBar() {
+function readInput(el: HTMLElement): string {
+  if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) return el.value;
+  return el.textContent ?? '';
+}
+
+function writeInput(el: HTMLElement, text: string) {
+  if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
+    el.value = text;
+  } else {
+    el.textContent = text;
+  }
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+export function ChipBar({ anchor, generate }: Props) {
+  const handleClick = async (action: ChipAction) => {
+    const text = readInput(anchor);
+    if (!text.trim()) return;
+    const result = await generate(action, text);
+    writeInput(anchor, result);
+  };
+
   return (
     <div
       style={{
@@ -29,8 +63,8 @@ export function ChipBar() {
         fontWeight: 500,
       }}
     >
-      {chips.map((label) => (
-        <button key={label} type="button" style={btn}>
+      {chips.map(({ label, action }) => (
+        <button key={action} type="button" style={btn} onClick={() => handleClick(action)}>
           {label}
         </button>
       ))}
