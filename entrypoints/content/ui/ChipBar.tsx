@@ -1,4 +1,4 @@
-import type { ChipAction } from '../ai';
+import type { ChipAction } from '../../../shared/ai';
 
 type Props = {
   anchor: HTMLElement;

@@ -71,6 +71,8 @@ export function createDetector(cbs: DetectorCallbacks) {
   let attached = false;
   let fabTimer: ReturnType<typeof setTimeout> | null = null;
   let fabContainer: HTMLElement | null = null;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const ac = new AbortController();
 
   const tryAttach = (strategy: string, el?: HTMLElement) => {
     if (attached) return;
@@ -78,12 +80,15 @@ export function createDetector(cbs: DetectorCallbacks) {
     if (!input) return;
     attached = true;
     if (fabTimer) { clearTimeout(fabTimer); fabTimer = null; }
+    keepFab = false;
     removeFab();
     cbs.onAttach(input, strategy);
   };
 
+  let keepFab = true;
+
   const showFab = () => {
-    if (attached || fabContainer) return;
+    if (attached || fabContainer || !keepFab) return;
     fabContainer = document.createElement('div');
     fabContainer.textContent = 'Improve prompt';
     Object.assign(fabContainer.style, {
@@ -112,18 +117,19 @@ export function createDetector(cbs: DetectorCallbacks) {
     fabContainer = null;
   };
 
-  // focusin — 0ms, no debounce
+  // focusin — 0ms, via AbortController
   document.addEventListener('focusin', ((e: FocusEvent) => {
     const el = e.target as HTMLElement;
     if (el.matches('textarea, [contenteditable="true"], [role="textbox"]')) {
       tryAttach('focusin', el);
     }
-  }) as EventListener, true);
+  }) as EventListener, { capture: true, signal: ac.signal });
 
-  // Dual MutationObserver — body + future chat containers
+  // MutationObserver with debounce
   const bodyObs = new MutationObserver(() => {
     if (attached) return;
-    tryAttach('adapter');
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => tryAttach('adapter'), 150);
   });
   bodyObs.observe(document.body, { childList: true, subtree: true });
 
@@ -132,13 +138,25 @@ export function createDetector(cbs: DetectorCallbacks) {
 
   const destroy = () => {
     bodyObs.disconnect();
+    ac.abort();
     if (fabTimer) clearTimeout(fabTimer);
+    if (debounceTimer) clearTimeout(debounceTimer);
     removeFab();
     attached = false;
+  };
+
+  const reset = () => {
+    attached = false;
+    keepFab = true;
+    if (fabTimer) clearTimeout(fabTimer);
+    fabTimer = setTimeout(showFab, 2000);
+    if (!debounceTimer) {
+      debounceTimer = setTimeout(() => tryAttach('adapter'), 150);
+    }
   };
 
   // Initial attempt
   tryAttach('adapter');
 
-  return { destroy, get attached() { return attached; } };
+  return { destroy, reset, get attached() { return attached; } };
 }
