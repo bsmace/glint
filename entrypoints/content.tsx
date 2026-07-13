@@ -1,7 +1,8 @@
 import { autoUpdate, computePosition, flip, shift } from '@floating-ui/dom';
 import { render } from 'preact';
 
-import type { ChipAction } from './content/ai';
+import type { ChipAction } from '../shared/ai';
+import { bg } from '../shared/messaging';
 import { createAI } from './content/ai';
 import { ChipBar } from './content/ui/ChipBar';
 import { createDetector } from './content/detector';
@@ -27,7 +28,11 @@ export default defineContentScript({
     let generate: ((action: ChipAction, text: string) => Promise<string>) | null = null;
 
     createAI().then((ai) => {
-      generate = (action, text) => ai.generate(action, text);
+      generate = async (action, text) => {
+        const result = await ai.generate(action, text);
+        if (text !== result) bg({ type: 'saveMemory', content: text, expanded: result, action });
+        return result;
+      };
       createDetector({
         onAttach(input) {
           mount(input);

@@ -1,4 +1,4 @@
-export type ChipAction = 'improve' | 'concise' | 'addContext' | 'format';
+import type { ChipAction } from '../../shared/ai';
 
 type AIProvider = {
   generate: (action: ChipAction, input: string) => Promise<string>;
