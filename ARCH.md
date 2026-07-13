@@ -10,10 +10,10 @@ Production arch that hits 100% coverage on ChatGPT, Claude, Gemini, Meta AI, Per
 
 ### 1. Stack - Verified 2026
 
-**Core:** WXT + TypeScript + React 18
+**Core:** WXT + TypeScript + Preact
 **Isolation:** `createShadowRootUi` - Shadow DOM with `adoptedStyleSheets` gives true bidirectional CSS isolation
 **Positioning:** Floating UI - anchors a floating element next to another while staying in view, library to position tooltips, popovers, dropdowns
-**AI:** Chrome Prompt API - `LanguageModel.availability()` returns `available | downloadable | downloading`, uses Gemini Nano, create baseline and clone for tasks, clones are independent
+**AI:** Chrome Prompt API - `LanguageModel.availability()` returns `available | downloadable | downloading`, uses Gemini Nano, create baseline and clone for tasks, clones are independent. Fallback = local heuristic string transform (no network, no external deps)
 **Storage:** Dexie + Orama WASM - local prompt library <10ms search
 **Execution:** Isolated World is default, content scripts execute in isolated world
 
@@ -35,10 +35,10 @@ LAYER 3: ANCHOR
   Floating UI computePosition + autoUpdate(input, floating, middleware: [offset(8), flip(), shift()])
   + ResizeObserver(input) + MutationObserver(chatContainer) + Navigation API
 
-LAYER 4: AI ENGINE
+LAYER 4: AI ENGINE (runs in content script, ISOLATED world — no fetch)
   BaseSession = await LanguageModel.create({initialPrompts})
   TaskSession = await BaseSession.clone() // 10ms not 400ms
-  Fallback = Transformers.js if availability!== 'available'
+  Fallback = local heuristic string transform (no network, no external deps)
 
 LAYER 5: UI
   Top-start placement (never cover Send), chip bar 36px, ghost diff, Tab to accept
@@ -65,17 +65,16 @@ if(!attachedAfter(2000)) showFAB({text:'Improve prompt', action: () => attach(ac
 
 ```
 entrypoints/
+  content.tsx // createShadowRootUi, world: ISOLATED, imports createAI + ChipBar
   content/
-    index.ts // createShadowRootUi, world: ISOLATED
-    detector.ts // adapters + focusin + observers
-    anchor.ts // Floating UI autoUpdate
-    ai/
-      session.ts // availability() check, base create, clone pool
-      improve.ts // prompt engineering templates
+    ai.ts // initPromptAPI (LanguageModel on-device) + initFallback (string-only)
+    detector.ts // adapters + focusin + observers + FAB
     ui/
-      ChipBar.tsx
+      ChipBar.tsx // 4 chips: Improve/Concise/AddContext/Format
       DiffView.tsx
-  background.ts // Orama index, remote adapter config fetch
+  sidepanel/
+    App.tsx // memory/variables/library side panel
+  background.ts // Dexie memory/telemetry/variables/folders/prompts only
 wxt.config.ts
 ```
 
@@ -90,5 +89,19 @@ wxt.config.ts
 - Content entry <50KB gzipped
 - `LanguageModel.create()` once at idle, not on focus
 - Orama cache 20 last improvements = instant for repeat prompts
+
+### 7. Banned Patterns & 3-Tier Security
+
+#### Chrome Web Store Banned Patterns (2025-2026)
+- `fetch` wrapper / intercepting host network requests
+- `postMessage` exfiltration from ISOLATED to MAIN world
+- `document_start` / MAIN world injection
+- Harvesting identity tokens, cookies, or passwords
+- Remote code execution (`eval()`, remote `<script>`)
+
+#### Safe 3-Tier Architecture
+- **Tier 1 — On-Device (shipped):** `LanguageModel` in content script (ISOLATED world), zero network. Fallback = heuristic string transform.
+- **Tier 2 — BYO API Key (future, not implemented):** fetch in background script, AES-256-GCM key storage, rate-limited.
+- **Tier 3 — Proxy Relay (future, not implemented):** backend relay, no user-identifying data, opt-in only.
 
 This arch is what 1Password + Grammarly + Linear's overlay use in 2026, verified against Chrome docs. Ship this and you cover every chat app without weekly breakage.

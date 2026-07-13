@@ -2,8 +2,8 @@
 
 > **For agentic workers:** subagent-driven-development or executing-plans. Checkboxes track.
 > **Goal:** Ship Chrome ext overlaying chat AIs → expand short prompts to outcome-first (RARE), on-device, 0 API cost, 100% attach.
-> **Arch:** WXT + React18 + TS. `createShadowRootUi(closed)` → Floating UI anchor → `LanguageModel` clone pool → Dexie/Orama. 5 layers + library/memory/weekly.
-> **Stack:** WXT, React 18, Floating UI, Chrome Prompt API (`LanguageModel`), Transformers.js fallback, Dexie, Orama WASM.
+> **Arch:** WXT + Preact + TS. `createShadowRootUi(closed)` → Floating UI anchor → `LanguageModel` clone pool → Dexie. 5 layers + library/memory/weekly.
+> **Stack:** WXT, Preact, Floating UI, Chrome Prompt API (`LanguageModel`), heuristic string fallback, Dexie.
 > **Scope:** ALL 7 features, ~6wk (M1-M5).
 
 ## Why → Feature (verified pain)
@@ -21,20 +21,16 @@
 ## File Map
 
 ```
+entrypoints/content.tsx   // createShadowRootUi closed, ISOLATED
 entrypoints/content/
-  index.ts          // createShadowRootUi closed, ISOLATED
-  detector.ts       // adapters + focusin + dual observer + FAB
-  anchor.ts         // Floating UI autoUpdate top-start
-  ai/session.ts     // availability() + base + clone pool
-  ai/improve.ts     // RARE templates: Improve/Concise/AddContext/Format/Expand
-  ai/variables.ts   // {{var}} parse + substitute from profile
-  ui/ChipBar.tsx
-  ui/DiffView.tsx
-  ui/Panel.tsx      // side panel + Ctrl+Shift+P window
-  memory.ts         // role/tone/var save + auto-inject
-  library.ts        // Dexie prompts/folders + Orama search
-  weekly.ts         // weekly review (accept/save count)
-entrypoints/background.ts  // Orama, remote adapter, shortcuts
+  ai.ts                   // initPromptAPI (LanguageModel on-device) + initFallback (string-only)
+  detector.ts             // adapters + focusin + dual observer + FAB
+  ui/
+    ChipBar.tsx           // 4 chips: Improve/Concise/AddContext/Format
+    DiffView.tsx
+entrypoints/sidepanel/
+  App.tsx                 // memory/variables/library side panel
+entrypoints/background.ts // Dexie memory/telemetry/variables/folders/prompts only
 wxt.config.ts
 ```
 
@@ -67,7 +63,6 @@ wxt.config.ts
   - **Concise:** strip process-stack, keep outcome
   - **Add Context:** ask "What did it miss? Audience? Format? Constraint?" → append 1 item
   - **Format:** table/structured
-  - **Expand:** 3-word draft → full RARE prompt
 - [ ] `{{audience}}`/`{{tone}}`/`{{goal}}` parse + substitute from saved profile; inject 1 Example if provided
 - [ ] Cache: Orama+Dexie, `hash(original)` dedup, last 20
 - [ ] Test: clone-not-create; cached<150ms; variables fill; RARE output correct
