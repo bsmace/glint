@@ -1,31 +1,81 @@
+import { autoUpdate, computePosition, flip, shift } from '@floating-ui/dom';
 import { render } from 'preact';
 
 import { ChipBar } from './content/ui/ChipBar';
+import { createDetector } from './content/detector';
 
-let container: HTMLElement | null = null;
+function startAutoUpdate(anchor: HTMLElement, floating: HTMLElement) {
+  return autoUpdate(anchor, floating, () => {
+    computePosition(anchor, floating, {
+      placement: 'top-start',
+      middleware: [flip(), shift({ padding: 8 })],
+    }).then(({ x, y }) => {
+      floating.style.transform = `translate(${x}px, ${y}px)`;
+    });
+  });
+}
 
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
   world: 'ISOLATED',
   main(ctx) {
-    const ui = createShadowRootUi(ctx, {
-      name: 'glint',
-      position: 'overlay',
-      mode: 'closed',
-      isolateEvents: true,
-      onMount: (c) => {
-        container = c;
-        render(<ChipBar />, c);
-      },
-      onRemove: () => {
-        if (container) {
-          render(null, container);
-          container = null;
-        }
+    let host: HTMLElement | null = null;
+    let stopAutoUpdate: (() => void) | null = null;
+
+    const mount = (anchor: HTMLElement) => {
+      if (host) return;
+
+      host = document.createElement('div');
+      host.style.position = 'fixed';
+      host.style.top = '0';
+      host.style.left = '0';
+      host.style.zIndex = '2147483647';
+      host.style.pointerEvents = 'auto';
+      document.body.append(host);
+
+      const shadow = host.attachShadow({ mode: 'closed' });
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(':host { all: initial }');
+      shadow.adoptedStyleSheets = [sheet];
+      const inner = document.createElement('div');
+      shadow.append(inner);
+      render(<ChipBar />, inner);
+
+      stopAutoUpdate = startAutoUpdate(anchor, host);
+
+      const show = () => {
+        host!.style.display = '';
+        stopAutoUpdate = startAutoUpdate(anchor, host!);
+      };
+
+      const hide = () => {
+        host!.style.display = 'none';
+        stopAutoUpdate?.();
+        stopAutoUpdate = null;
+      };
+
+      anchor.addEventListener('blur', hide);
+      anchor.addEventListener('focus', show);
+    };
+
+    const unmount = () => {
+      stopAutoUpdate?.();
+      if (host) {
+        host.remove();
+        host = null;
+      }
+    };
+
+    const det = createDetector({
+      onAttach(input) {
+        mount(input);
       },
     });
 
-    ui.mount();
+    ctx.addEventListener('window:unload', () => {
+      det.destroy();
+      unmount();
+    });
   },
 });
