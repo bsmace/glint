@@ -14,6 +14,7 @@
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.5",
+    "@types/chrome": "^0.2.2",
     "typescript": "^7.0.2",
     "wxt": "^0.20.27"
   },

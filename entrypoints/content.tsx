@@ -7,6 +7,16 @@ import { createAI } from './content/ai';
 import { ChipBar } from './content/ui/ChipBar';
 import { createDetector } from './content/detector';
 
+async function substituteVariables(text: string): Promise<string> {
+  const r = await bg({ type: 'listVariables' });
+  if (!r.ok || !r.data) return text;
+  let out = text;
+  for (const v of r.data as { key: string; value: string }[]) {
+    out = out.replaceAll(`{{${v.key}}}`, v.value);
+  }
+  return out;
+}
+
 function startAutoUpdate(anchor: HTMLElement, floating: HTMLElement) {
   return autoUpdate(anchor, floating, () => {
     computePosition(anchor, floating, {
@@ -19,21 +29,42 @@ function startAutoUpdate(anchor: HTMLElement, floating: HTMLElement) {
 }
 
 export default defineContentScript({
-  matches: ['<all_urls>'],
+  matches: ['*://chatgpt.com/*', '*://claude.ai/*', '*://gemini.google.com/*', '*://meta.ai/*', '*://perplexity.ai/*', '*://poe.com/*'],
   runAt: 'document_idle',
   world: 'ISOLATED',
   main(ctx) {
     let host: HTMLElement | null = null;
     let stopAutoUpdate: (() => void) | null = null;
     let generate: ((action: ChipAction, text: string) => Promise<string>) | null = null;
+    let detector: ReturnType<typeof createDetector> | null = null;
+    let anchorRef: HTMLElement | null = null;
+    let observer: MutationObserver | null = null;
+
+    const watchAnchor = (anchor: HTMLElement) => {
+      anchorRef = anchor;
+      observer = new MutationObserver(() => {
+        if (!document.contains(anchor)) {
+          unmount();
+          detector?.reset();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    };
+
+    const stopWatchingAnchor = () => {
+      observer?.disconnect();
+      observer = null;
+      anchorRef = null;
+    };
 
     createAI().then((ai) => {
       generate = async (action, text) => {
-        const result = await ai.generate(action, text);
-        if (text !== result) bg({ type: 'saveMemory', content: text, expanded: result, action });
+        const substituted = await substituteVariables(text);
+        const result = await ai.generate(action, substituted);
+        if (text !== result) bg({ type: 'saveMemory', content: text, expanded: result, action, url: location.href });
         return result;
       };
-      createDetector({
+      detector = createDetector({
         onAttach(input) {
           mount(input);
         },
@@ -50,6 +81,7 @@ export default defineContentScript({
       host.style.zIndex = '2147483647';
       host.style.pointerEvents = 'auto';
       document.body.append(host);
+      watchAnchor(anchor);
 
       const shadow = host.attachShadow({ mode: 'closed' });
       const sheet = new CSSStyleSheet();
@@ -77,12 +109,27 @@ export default defineContentScript({
 
     const unmount = () => {
       stopAutoUpdate?.();
+      stopAutoUpdate = null;
+      stopWatchingAnchor();
       if (host) {
         host.remove();
         host = null;
       }
     };
 
-    ctx.addEventListener('window:unload', unmount);
+    let prevUrl = location.href;
+    const urlObserver = new MutationObserver(() => {
+      if (location.href !== prevUrl) {
+        prevUrl = location.href;
+        unmount();
+        detector?.reset();
+      }
+    });
+    urlObserver.observe(document, { subtree: true, childList: true });
+
+    ctx.addEventListener(window, 'unload', () => {
+      unmount();
+      urlObserver.disconnect();
+    });
   },
 });

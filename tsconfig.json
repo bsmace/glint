@@ -1,12 +1,15 @@
 {
+  "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "types": ["chrome"],
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -15,6 +18,6 @@
       "@/*": ["./entrypoints/*"]
     }
   },
-  "include": ["entrypoints"],
+  "include": ["entrypoints", ".wxt/wxt.d.ts"],
   "exclude": ["node_modules"]
 }

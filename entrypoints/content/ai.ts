@@ -22,9 +22,11 @@ const INSTRUCTIONS: Record<ChipAction, string> = {
 };
 
 async function initPromptAPI(): Promise<AIProvider> {
-  const session = await (ai as any).languageModel.create({
-    systemPrompt: RARE_SYSTEM,
+  const LM = (globalThis as any).LanguageModel;
+  const session = await LM.create({
+    initialPrompts: [{ role: 'system', content: RARE_SYSTEM }],
     temperature: 0.3,
+    topK: 3,
   });
 
   return {
@@ -49,7 +51,8 @@ function initFallback(): AIProvider {
 
 export async function createAI(): Promise<AIProvider> {
   try {
-    if (typeof ai !== 'undefined' && (ai as any)?.languageModel?.create) {
+    const LM = (globalThis as any).LanguageModel;
+    if (LM?.create) {
       return await initPromptAPI();
     }
   } catch {}
