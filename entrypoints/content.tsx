@@ -57,21 +57,21 @@ export default defineContentScript({
       anchorRef = null;
     };
 
-    createAI().then((ai) => {
+    createAI().then(({ provider, onDevice }) => {
       generate = async (action, text) => {
         const substituted = await substituteVariables(text);
-        const result = await ai.generate(action, substituted);
+        const result = await provider.generate(action, substituted);
         if (text !== result) bg({ type: 'saveMemory', content: text, expanded: result, action, url: location.href });
         return result;
       };
       detector = createDetector({
         onAttach(input) {
-          mount(input);
+          mount(input, onDevice);
         },
       });
     });
 
-    const mount = (anchor: HTMLElement) => {
+    const mount = (anchor: HTMLElement, onDevice = false) => {
       if (host) return;
 
       host = document.createElement('div');
@@ -89,7 +89,7 @@ export default defineContentScript({
       shadow.adoptedStyleSheets = [sheet];
       const inner = document.createElement('div');
       shadow.append(inner);
-      render(<ChipBar anchor={anchor} generate={generate!} />, inner);
+      render(<ChipBar anchor={anchor} generate={generate!} onDevice={onDevice} />, inner);
 
       stopAutoUpdate = startAutoUpdate(anchor, host);
 

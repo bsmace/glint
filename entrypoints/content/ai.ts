@@ -49,12 +49,13 @@ function initFallback(): AIProvider {
   };
 }
 
-export async function createAI(): Promise<AIProvider> {
+export async function createAI(): Promise<{ provider: AIProvider; onDevice: boolean }> {
   try {
     const LM = (globalThis as any).LanguageModel;
     if (LM?.create) {
-      return await initPromptAPI();
+      const provider = await initPromptAPI();
+      return { provider, onDevice: true };
     }
   } catch {}
-  return initFallback();
+  return { provider: initFallback(), onDevice: false };
 }

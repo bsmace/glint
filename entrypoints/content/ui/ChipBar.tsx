@@ -5,6 +5,7 @@ import { DiffView } from './DiffView';
 type Props = {
   anchor: HTMLElement;
   generate: (action: ChipAction, text: string) => Promise<string>;
+  onDevice?: boolean;
 };
 
 const btn: Record<string, string> = {
@@ -43,7 +44,7 @@ function writeInput(el: HTMLElement, text: string) {
 
 type DiffState = { original: string; improved: string };
 
-export function ChipBar({ anchor, generate }: Props) {
+export function ChipBar({ anchor, generate, onDevice }: Props) {
   const [diff, setDiff] = useState<DiffState | null>(null);
 
   const handleClick = async (action: ChipAction) => {
@@ -95,6 +96,22 @@ export function ChipBar({ anchor, generate }: Props) {
             {label}
           </button>
         ))}
+        {onDevice && (
+          <span
+            style={{
+              fontSize: '10px',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              background: '#e8f5e9',
+              color: '#2e7d32',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              marginLeft: 'auto',
+            }}
+          >
+            On-device
+          </span>
+        )}
       </div>
 
       {diff && (
