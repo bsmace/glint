@@ -14,7 +14,7 @@ Production arch that hits 100% coverage on ChatGPT, Claude, Gemini, Meta AI, Per
 **Isolation:** `createShadowRootUi` - Shadow DOM with `adoptedStyleSheets` gives true bidirectional CSS isolation
 **Positioning:** Floating UI - anchors a floating element next to another while staying in view, library to position tooltips, popovers, dropdowns
 **AI:** Chrome Prompt API - `LanguageModel.availability()` returns `available | downloadable | downloading`, uses Gemini Nano, create baseline and clone for tasks, clones are independent. Fallback = local heuristic string transform (no network, no external deps)
-**Storage:** Dexie + Orama WASM - local prompt library <10ms search
+**Storage:** Dexie - local prompt library <10ms search
 **Execution:** Isolated World is default, content scripts execute in isolated world
 
 ### 2. Architecture - 5 Layers
@@ -88,7 +88,7 @@ wxt.config.ts
 
 - Content entry <50KB gzipped
 - `LanguageModel.create()` once at idle, not on focus
-- Orama cache 20 last improvements = instant for repeat prompts
+- Dexie cache 20 last improvements = instant for repeat prompts
 
 ### 7. Banned Patterns & 3-Tier Security
 
