@@ -1,3 +1,17 @@
+const btn: Record<string, string> = {
+  padding: '4px 10px',
+  border: '1px solid #e0e0e0',
+  borderRadius: '8px',
+  background: '#f8f9fa',
+  cursor: 'pointer',
+  fontSize: '13px',
+  fontWeight: '500',
+  color: '#333',
+  lineHeight: '20px',
+};
+
+const chips = ['Improve', 'Concise', 'Add Context', 'Format'];
+
 export function ChipBar() {
   return (
     <div
@@ -15,70 +29,11 @@ export function ChipBar() {
         fontWeight: 500,
       }}
     >
-      <button
-        type="button"
-        style={{
-          padding: '4px 10px',
-          border: '1px solid #e0e0e0',
-          borderRadius: '8px',
-          background: '#f8f9fa',
-          cursor: 'pointer',
-          fontSize: '13px',
-          fontWeight: 500,
-          color: '#333',
-          lineHeight: '20px',
-        }}
-      >
-        Improve
-      </button>
-      <button
-        type="button"
-        style={{
-          padding: '4px 10px',
-          border: '1px solid #e0e0e0',
-          borderRadius: '8px',
-          background: '#f8f9fa',
-          cursor: 'pointer',
-          fontSize: '13px',
-          fontWeight: 500,
-          color: '#333',
-          lineHeight: '20px',
-        }}
-      >
-        Concise
-      </button>
-      <button
-        type="button"
-        style={{
-          padding: '4px 10px',
-          border: '1px solid #e0e0e0',
-          borderRadius: '8px',
-          background: '#f8f9fa',
-          cursor: 'pointer',
-          fontSize: '13px',
-          fontWeight: 500,
-          color: '#333',
-          lineHeight: '20px',
-        }}
-      >
-        Add Context
-      </button>
-      <button
-        type="button"
-        style={{
-          padding: '4px 10px',
-          border: '1px solid #e0e0e0',
-          borderRadius: '8px',
-          background: '#f8f9fa',
-          cursor: 'pointer',
-          fontSize: '13px',
-          fontWeight: 500,
-          color: '#333',
-          lineHeight: '20px',
-        }}
-      >
-        Format
-      </button>
+      {chips.map((label) => (
+        <button key={label} type="button" style={btn}>
+          {label}
+        </button>
+      ))}
     </div>
   );
 }

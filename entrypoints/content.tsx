@@ -2,20 +2,27 @@ import { render } from 'preact';
 
 import { ChipBar } from './content/ui/ChipBar';
 
+let container: HTMLElement | null = null;
+
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
+  world: 'ISOLATED',
   main(ctx) {
     const ui = createShadowRootUi(ctx, {
       name: 'glint',
       position: 'overlay',
       mode: 'closed',
       isolateEvents: true,
-      onMount: (container) => {
-        render(<ChipBar />, container);
+      onMount: (c) => {
+        container = c;
+        render(<ChipBar />, c);
       },
       onRemove: () => {
-        // Preact auto-cleans on container removal
+        if (container) {
+          render(null, container);
+          container = null;
+        }
       },
     });
 
