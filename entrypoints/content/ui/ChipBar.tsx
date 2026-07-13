@@ -1,4 +1,6 @@
+import { useState } from 'preact/hooks';
 import type { ChipAction } from '../../../shared/ai';
+import { DiffView } from './DiffView';
 
 type Props = {
   anchor: HTMLElement;
@@ -39,35 +41,70 @@ function writeInput(el: HTMLElement, text: string) {
   el.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+type DiffState = { original: string; improved: string };
+
 export function ChipBar({ anchor, generate }: Props) {
+  const [diff, setDiff] = useState<DiffState | null>(null);
+
   const handleClick = async (action: ChipAction) => {
     const text = readInput(anchor);
     if (!text.trim()) return;
     const result = await generate(action, text);
-    writeInput(anchor, result);
+    setDiff({ original: text, improved: result });
+  };
+
+  const handleAccept = () => {
+    if (!diff) return;
+    writeInput(anchor, diff.improved);
+    setDiff(null);
+  };
+
+  const handleReject = () => {
+    setDiff(null);
   };
 
   return (
     <div
       style={{
-        display: 'flex',
-        gap: '4px',
-        padding: '2px 8px',
-        height: '36px',
-        alignItems: 'center',
         background: '#ffffff',
         boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-        borderRadius: '12px',
+        borderRadius: diff ? '12px' : '12px',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
         fontSize: '13px',
         fontWeight: 500,
+        minWidth: '180px',
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && diff) {
+          e.preventDefault();
+          handleReject();
+        }
       }}
     >
-      {chips.map(({ label, action }) => (
-        <button key={action} type="button" style={btn} onClick={() => handleClick(action)}>
-          {label}
-        </button>
-      ))}
+      <div
+        style={{
+          display: 'flex',
+          gap: '4px',
+          padding: '2px 8px',
+          height: '36px',
+          alignItems: 'center',
+        }}
+      >
+        {chips.map(({ label, action }) => (
+          <button key={action} type="button" style={btn} onClick={() => handleClick(action)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {diff && (
+        <DiffView
+          original={diff.original}
+          improved={diff.improved}
+          onAccept={handleAccept}
+          onReject={handleReject}
+        />
+      )}
     </div>
   );
 }
