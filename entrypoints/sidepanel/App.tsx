@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
-import { bg } from '../../shared/messaging';
+import { bg, type TelemetryData } from '../../shared/messaging';
 
 type Tab = 'prompts' | 'memory' | 'variables';
 
@@ -56,6 +56,7 @@ export function App() {
   const [mem, setMem] = useState<{ stats: { total: number; weekly: number; byAction: Record<string, number> }; recent: MemoryEntry[] }>({ stats: { total: 0, weekly: 0, byAction: {} }, recent: [] });
   const [prompts, setPrompts] = useState<SavedPrompt[]>([]);
   const [showVarModal, setShowVarModal] = useState(false);
+  const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
 
   useEffect(() => { loadTab(tab); }, [tab]);
 
@@ -70,6 +71,8 @@ export function App() {
         const { total, weekly, byAction } = sr.data as any;
         setMem({ stats: { total, weekly, byAction }, recent: [] });
       }
+      const tr = await bg({ type: 'getTelemetry' });
+      if (tr.ok) setTelemetry(tr.data as TelemetryData);
     }
     if (t === 'prompts') {
       const r = await bg({ type: 'listSavedPrompts' });
@@ -96,6 +99,18 @@ export function App() {
             <div style={s.title as string}>Memory Stats</div>
             <div style={s.sub as string}>Total: {mem.stats.total} · This week: {mem.stats.weekly}</div>
           </div>
+          {telemetry && (
+            <div style={{ padding: '12px 14px', background: '#fff', borderBottom: '1px solid #eee' }}>
+              <div style={s.title as string}>Telemetry</div>
+              <div style={s.sub as string}>
+                Detects: {Object.entries(telemetry.detectByStrategy).map(([k, v]) => `${k}:${v}`).join(' · ')}
+              </div>
+              <div style={s.sub as string}>
+                Reflows: {telemetry.anchorReflowCount}
+                {telemetry.aiLatencyMs.count > 0 && ` · AI avg: ${Math.round(telemetry.aiLatencyMs.total / telemetry.aiLatencyMs.count)}ms (${telemetry.aiLatencyMs.count} calls)`}
+              </div>
+            </div>
+          )}
           {mem.recent.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#999' }}>No entries yet.</div>}
         </div>
       )}

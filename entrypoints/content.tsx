@@ -2,7 +2,7 @@ import { autoUpdate, computePosition, flip, shift } from '@floating-ui/dom';
 import { render } from 'preact';
 
 import type { ChipAction } from '../shared/ai';
-import { bg } from '../shared/messaging';
+import { bg, type TelemetryData } from '../shared/messaging';
 import { createAI } from './content/ai';
 import { ChipBar } from './content/ui/ChipBar';
 import { createDetector } from './content/detector';
@@ -17,8 +17,9 @@ async function substituteVariables(text: string): Promise<string> {
   return out;
 }
 
-function startAutoUpdate(anchor: HTMLElement, floating: HTMLElement) {
+function startAutoUpdate(anchor: HTMLElement, floating: HTMLElement, telemetry: TelemetryData) {
   return autoUpdate(anchor, floating, () => {
+    telemetry.anchorReflowCount++;
     computePosition(anchor, floating, {
       placement: 'top-start',
       middleware: [flip(), shift({ padding: 8 })],
@@ -33,6 +34,7 @@ export default defineContentScript({
   runAt: 'document_idle',
   world: 'ISOLATED',
   main(ctx) {
+    const telemetry: TelemetryData = { detectByStrategy: {}, anchorReflowCount: 0, aiLatencyMs: { count: 0, total: 0 } };
     let host: HTMLElement | null = null;
     let stopAutoUpdate: (() => void) | null = null;
     let generate: ((action: ChipAction, text: string) => Promise<string>) | null = null;
@@ -59,17 +61,28 @@ export default defineContentScript({
 
     createAI().then(({ provider, onDevice }) => {
       generate = async (action, text) => {
+        const t0 = performance.now();
         const substituted = await substituteVariables(text);
         const result = await provider.generate(action, substituted);
+        telemetry.aiLatencyMs.count++;
+        telemetry.aiLatencyMs.total += performance.now() - t0;
         if (text !== result) bg({ type: 'saveMemory', content: text, expanded: result, action, url: location.href });
         return result;
       };
       detector = createDetector({
-        onAttach(input) {
+        onAttach(input, strategy) {
+          telemetry.detectByStrategy[strategy] = (telemetry.detectByStrategy[strategy] ?? 0) + 1;
           mount(input, onDevice);
         },
       });
     });
+
+    const flushTelemetry = () => {
+      if (telemetry.aiLatencyMs.count > 0 || Object.keys(telemetry.detectByStrategy).length > 0) {
+        bg({ type: 'reportTelemetry', data: { ...telemetry } });
+      }
+    };
+    const flushTimer = setInterval(flushTelemetry, 60000);
 
     const mount = (anchor: HTMLElement, onDevice = false) => {
       if (host) return;
@@ -91,11 +104,11 @@ export default defineContentScript({
       shadow.append(inner);
       render(<ChipBar anchor={anchor} generate={generate!} onDevice={onDevice} />, inner);
 
-      stopAutoUpdate = startAutoUpdate(anchor, host);
+      stopAutoUpdate = startAutoUpdate(anchor, host, telemetry);
 
       const show = () => {
         host!.style.display = '';
-        stopAutoUpdate = startAutoUpdate(anchor, host!);
+        stopAutoUpdate = startAutoUpdate(anchor, host!, telemetry);
       };
       const hide = () => {
         host!.style.display = 'none';
@@ -128,6 +141,8 @@ export default defineContentScript({
     urlObserver.observe(document, { subtree: true, childList: true });
 
     ctx.addEventListener(window, 'unload', () => {
+      flushTelemetry();
+      clearInterval(flushTimer);
       unmount();
       urlObserver.disconnect();
     });

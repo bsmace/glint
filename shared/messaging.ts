@@ -10,7 +10,15 @@ export type BackgroundRequest =
   | { type: 'saveFolder'; name: string; parentId: number | null }
   | { type: 'deleteFolder'; id: number }
   | { type: 'savePrompt'; title: string; content: string; folderId: number | null }
-  | { type: 'listSavedPrompts' };
+  | { type: 'listSavedPrompts' }
+  | { type: 'reportTelemetry'; data: TelemetryData }
+  | { type: 'getTelemetry' };
+
+export type TelemetryData = {
+  detectByStrategy: Record<string, number>;
+  anchorReflowCount: number;
+  aiLatencyMs: { count: number; total: number };
+};
 
 export type BackgroundResponse =
   | { ok: true; data?: unknown }
