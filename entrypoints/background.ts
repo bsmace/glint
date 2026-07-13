@@ -1,5 +1,5 @@
 import type { BackgroundRequest } from '../shared/messaging';
-import { saveToMemory, getMemoryStats, listVariables, saveVariable, deleteVariable, listFolders, saveFolder, deleteFolder } from '../shared/services';
+import { saveToMemory, getMemoryStats, listVariables, saveVariable, deleteVariable, listFolders, saveFolder, deleteFolder, savePrompt, listSavedPrompts } from '../shared/services';
 
 export default defineBackground(() => {
   chrome.runtime.onMessage.addListener((req: BackgroundRequest, _sender, send) => {
@@ -7,7 +7,7 @@ export default defineBackground(() => {
       try {
         switch (req.type) {
           case 'saveMemory':
-            await saveToMemory(req.content, req.expanded, req.action);
+            await saveToMemory(req.content, req.expanded, req.action, req.url);
             send({ ok: true });
             break;
           case 'getMemoryStats':
@@ -34,6 +34,13 @@ export default defineBackground(() => {
           case 'deleteFolder':
             await deleteFolder(req.id);
             send({ ok: true });
+            break;
+          case 'savePrompt':
+            await savePrompt(req.title, req.content, req.folderId);
+            send({ ok: true });
+            break;
+          case 'listSavedPrompts':
+            send({ ok: true, data: await listSavedPrompts() });
             break;
           default:
             send({ ok: false, error: 'unknown request' });

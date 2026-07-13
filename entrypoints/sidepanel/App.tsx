@@ -65,16 +65,16 @@ export function App() {
       if (r.ok) setVars(r.data as Variable[]);
     }
     if (t === 'memory') {
-      const [sr, mr] = await Promise.all([
-        bg({ type: 'getMemoryStats' }),
-        bg({ type: 'getMemoryStats' }),
-      ]);
+      const sr = await bg({ type: 'getMemoryStats' });
       if (sr.ok) {
         const { total, weekly, byAction } = sr.data as any;
         setMem({ stats: { total, weekly, byAction }, recent: [] });
       }
     }
-    if (t === 'prompts') setPrompts([]);
+    if (t === 'prompts') {
+      const r = await bg({ type: 'listSavedPrompts' });
+      if (r.ok) setPrompts(r.data as SavedPrompt[]);
+    }
   };
 
   const delVar = async (id: number) => {

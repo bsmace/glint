@@ -32,14 +32,25 @@ export async function deleteFolder(id: number) {
   await db.folders.delete(id);
 }
 
-export function saveToMemory(content: string, expandedContent: string, action: string) {
+export function saveToMemory(content: string, expandedContent: string, action: string, url: string) {
   return db.memory.add({
     content,
     expandedContent,
     action,
-    url: location.href,
+    url,
     createdAt: Date.now(),
   });
+}
+
+export async function savePrompt(title: string, content: string, folderId: number | null = null) {
+  return db.savedPrompts.add({
+    title, content, folderId,
+    createdAt: Date.now(), updatedAt: Date.now(), usageCount: 0,
+  });
+}
+
+export async function listSavedPrompts() {
+  return db.savedPrompts.orderBy('updatedAt').reverse().toArray();
 }
 
 export async function getMemoryStats() {
