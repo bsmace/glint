@@ -84,21 +84,33 @@ export default defineBackground(() => {
   });
 
   // Programmatic injection for m365.cloud.microsoft (Edge blocks declarative CS on MS domains)
-  const COPIOT = 'm365.cloud.microsoft';
-  const inject = (tabId: number) => {
-    chrome.scripting.executeScript({
+  const COPILOT = 'm365.cloud.microsoft';
+  const injectedTabs = new Set<number>();
+
+  const inject = async (tabId: number) => {
+    if (injectedTabs.has(tabId)) return;
+    // Ping content script to check if already injected & alive
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: 'glint:ping' });
+      injectedTabs.add(tabId);
+      return;
+    } catch {}
+    injectedTabs.add(tabId);
+    await chrome.scripting.executeScript({
       target: { tabId },
       files: ['content-scripts/content.js'],
       world: 'ISOLATED',
-    }).catch(() => {});
+    }).catch(() => injectedTabs.delete(tabId));
   };
 
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab.url?.includes(COPIOT)) inject(tabId);
+    if (changeInfo.status === 'complete' && tab.url?.includes(COPILOT)) inject(tabId);
   });
 
   // Inject on already-open Copilot tabs at startup
-  chrome.tabs.query({ url: `*://${COPIOT}/*` }, (tabs) => {
+  chrome.tabs.query({ url: `*://${COPILOT}/*` }, (tabs) => {
     for (const t of tabs) if (t.id) inject(t.id);
   });
+
+  chrome.tabs.onRemoved.addListener((tabId) => injectedTabs.delete(tabId));
 });

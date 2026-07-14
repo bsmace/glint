@@ -36,6 +36,13 @@ export default defineContentScript({
   runAt: 'document_idle',
   world: 'ISOLATED',
   main(ctx) {
+    if ((window as any).__glintInjected) return;
+    (window as any).__glintInjected = true;
+
+    chrome.runtime.onMessage.addListener((req, _sender, send) => {
+      if ((req as any).type === 'glint:ping') send({ ok: true });
+    });
+
     const telemetry: TelemetryData = { detectByStrategy: {}, anchorReflowCount: 0, aiLatencyMs: { count: 0, total: 0 } };
     let host: HTMLElement | null = null;
     let stopAutoUpdate: (() => void) | null = null;

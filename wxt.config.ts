@@ -7,6 +7,11 @@ export default defineConfig({
     description: 'Type less, mean more - prompt assistant',
     permissions: ['storage', 'sidePanel', 'scripting'],
     host_permissions: ['*://m365.cloud.microsoft/*'],
+    web_accessible_resources: [{
+      resources: ['content-scripts/content.js'],
+      matches: ['*://m365.cloud.microsoft/*'],
+      use_dynamic_url: true,
+    }],
     side_panel: {
       default_path: 'sidepanel.html',
     },
