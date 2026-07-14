@@ -1,3 +1,5 @@
+import { FAB_SHOW_DELAY_MS, DETECTOR_DEBOUNCE_MS } from '../../shared/constants';
+
 export type Adapter = {
   domain: string;
   selector: string;
@@ -10,6 +12,7 @@ const adapters: Adapter[] = [
   { domain: 'meta.ai', selector: 'textarea' },
   { domain: 'perplexity.ai', selector: 'textarea' },
   { domain: 'poe.com', selector: 'textarea' },
+  { domain: 'm365.cloud.microsoft', selector: '[contenteditable="true"][role="textbox"]' },
 ];
 
 function matchAdapter(): Adapter | null {
@@ -40,7 +43,7 @@ function heuristicInput(): HTMLElement | null {
 
 export type DetectResult = {
   el: HTMLElement | null;
-  strategy: 'adapter' | 'aria' | 'heuristic' | 'focusin';
+  strategy: 'adapter' | 'aria' | 'heuristic' | 'focusin' | 'fab';
 };
 
 export function detect(el?: HTMLElement): DetectResult {
@@ -76,13 +79,14 @@ export function createDetector(cbs: DetectorCallbacks) {
 
   const tryAttach = (strategy: string, el?: HTMLElement) => {
     if (attached) return;
-    const { el: input } = detect(el);
-    if (!input) return;
+    const result = detect(el);
+    console.log('[glint] tryAttach strategy=' + strategy + ' found=' + (result.el?.tagName ?? 'null') + ' id=' + (result.el?.id ?? ''));
+    if (!result.el) return;
     attached = true;
     if (fabTimer) { clearTimeout(fabTimer); fabTimer = null; }
     keepFab = false;
     removeFab();
-    cbs.onAttach(input, strategy);
+    cbs.onAttach(result.el, strategy);
   };
 
   let keepFab = true;
@@ -129,12 +133,12 @@ export function createDetector(cbs: DetectorCallbacks) {
   const bodyObs = new MutationObserver(() => {
     if (attached) return;
     if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => tryAttach('adapter'), 150);
+    debounceTimer = setTimeout(() => tryAttach('adapter'), DETECTOR_DEBOUNCE_MS);
   });
   bodyObs.observe(document.body, { childList: true, subtree: true });
 
   // FAB fallback after 2s
-  fabTimer = setTimeout(showFab, 2000);
+  fabTimer = setTimeout(showFab, FAB_SHOW_DELAY_MS);
 
   const destroy = () => {
     bodyObs.disconnect();
@@ -149,9 +153,9 @@ export function createDetector(cbs: DetectorCallbacks) {
     attached = false;
     keepFab = true;
     if (fabTimer) clearTimeout(fabTimer);
-    fabTimer = setTimeout(showFab, 2000);
+    fabTimer = setTimeout(showFab, FAB_SHOW_DELAY_MS);
     if (!debounceTimer) {
-      debounceTimer = setTimeout(() => tryAttach('adapter'), 150);
+      debounceTimer = setTimeout(() => tryAttach('adapter'), DETECTOR_DEBOUNCE_MS);
     }
   };
 

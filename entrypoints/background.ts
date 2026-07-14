@@ -1,10 +1,17 @@
 import type { BackgroundRequest, TelemetryData } from '../shared/messaging';
-import { saveToMemory, getMemoryStats, listVariables, saveVariable, deleteVariable, listFolders, saveFolder, deleteFolder, savePrompt, listSavedPrompts } from '../shared/services';
-
-let telemetry: TelemetryData = { detectByStrategy: {}, anchorReflowCount: 0, aiLatencyMs: { count: 0, total: 0 } };
+import { isBackgroundRequest } from '../shared/messaging';
+import { saveToMemory, getMemoryStats, listVariables, saveVariable, deleteVariable, listFolders, saveFolder, deleteFolder, savePrompt, listSavedPrompts, deleteSavedPrompt, listRecentMemory, saveTelemetry, getLatestTelemetry } from '../shared/services';
 
 export default defineBackground(() => {
-  chrome.runtime.onMessage.addListener((req: BackgroundRequest, _sender, send) => {
+  chrome.runtime.onMessage.addListener((req: unknown, sender, send) => {
+    if (sender.id !== chrome.runtime.id) {
+      send({ ok: false, error: 'unauthorized' });
+      return;
+    }
+    if (!isBackgroundRequest(req)) {
+      send({ ok: false, error: 'invalid request' });
+      return;
+    }
     (async () => {
       try {
         switch (req.type) {
@@ -44,18 +51,25 @@ export default defineBackground(() => {
           case 'listSavedPrompts':
             send({ ok: true, data: await listSavedPrompts() });
             break;
+          case 'deleteSavedPrompt':
+            await deleteSavedPrompt(req.id);
+            send({ ok: true });
+            break;
+          case 'listRecentMemory':
+            send({ ok: true, data: await listRecentMemory(req.limit) });
+            break;
           case 'reportTelemetry':
-            telemetry = req.data;
+            await saveTelemetry(req.data);
             send({ ok: true });
             break;
           case 'getTelemetry':
-            send({ ok: true, data: telemetry });
+            send({ ok: true, data: await getLatestTelemetry() });
             break;
           default:
             send({ ok: false, error: 'unknown request' });
         }
       } catch (e: unknown) {
-        send({ ok: false, error: (e as Error).message });
+        send({ ok: false, error: 'internal error' });
       }
     })();
     return true;
@@ -67,5 +81,24 @@ export default defineBackground(() => {
     if (cmd === 'toggle-panel') {
       chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
     }
+  });
+
+  // Programmatic injection for m365.cloud.microsoft (Edge blocks declarative CS on MS domains)
+  const COPIOT = 'm365.cloud.microsoft';
+  const inject = (tabId: number) => {
+    chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content-scripts/content.js'],
+      world: 'ISOLATED',
+    }).catch(() => {});
+  };
+
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && tab.url?.includes(COPIOT)) inject(tabId);
+  });
+
+  // Inject on already-open Copilot tabs at startup
+  chrome.tabs.query({ url: `*://${COPIOT}/*` }, (tabs) => {
+    for (const t of tabs) if (t.id) inject(t.id);
   });
 });

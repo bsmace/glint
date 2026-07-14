@@ -2,6 +2,7 @@
 export {}
 declare global {
   const ContentScriptContext: typeof import('wxt/utils/content-script-context').ContentScriptContext
+  const ErrorBoundary: typeof import('C:/Users/basem.sofan/Downloads/dev/glint/components/ErrorBoundary').ErrorBoundary
   const InvalidMatchPattern: typeof import('wxt/utils/match-patterns').InvalidMatchPattern
   const MatchPattern: typeof import('wxt/utils/match-patterns').MatchPattern
   const browser: typeof import('wxt/browser').browser
@@ -18,6 +19,13 @@ declare global {
   const injectScript: typeof import('wxt/utils/inject-script').injectScript
   const storage: typeof import('wxt/utils/storage').storage
   const useAppConfig: typeof import('wxt/utils/app-config').useAppConfig
+  const useCallback: typeof import('react').useCallback
+  const useContext: typeof import('react').useContext
+  const useEffect: typeof import('react').useEffect
+  const useMemo: typeof import('react').useMemo
+  const useReducer: typeof import('react').useReducer
+  const useRef: typeof import('react').useRef
+  const useState: typeof import('react').useState
 }
 // for type re-export
 declare global {
@@ -48,4 +56,7 @@ declare global {
   // @ts-ignore
   export type { ScriptPublicPath, InjectScriptOptions } from 'wxt/utils/inject-script'
   import('wxt/utils/inject-script')
+  // @ts-ignore
+  export type { ErrorBoundary } from 'C:/Users/basem.sofan/Downloads/dev/glint/components/ErrorBoundary'
+  import('C:/Users/basem.sofan/Downloads/dev/glint/components/ErrorBoundary')
 }

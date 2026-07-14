@@ -5,7 +5,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "jsxImportSource": "preact",
+    "jsxImportSource": "react",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -13,11 +13,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
-    "paths": {
-      "@/*": ["./entrypoints/*"]
-    }
+    "noEmit": true
   },
-  "include": ["entrypoints", ".wxt/wxt.d.ts"],
+  "include": ["entrypoints", "components", "lib", "styles", "src", ".wxt/wxt.d.ts", "types"],
   "exclude": ["node_modules"]
 }

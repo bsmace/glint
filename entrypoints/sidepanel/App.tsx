@@ -1,146 +1,266 @@
-import { useEffect, useState } from 'preact/hooks';
-import { bg, type TelemetryData } from '../../shared/messaging';
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { bg, isSuccessfulResponseWithData } from '../../shared/messaging';
+import type { TelemetryData } from '../../shared/messaging';
+import type { MemoryEntry, Variable, SavedPrompt } from '../../shared/db';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { PlusIcon } from 'lucide-react';
 
 type Tab = 'prompts' | 'memory' | 'variables';
 
-const tabs: { id: Tab; label: string }[] = [
-  { id: 'prompts', label: 'Saved' },
+// Type guards for response data
+function isVariableArray(data: unknown): data is Variable[] {
+  return Array.isArray(data) && data.every(item => typeof item === 'object' && item !== null && 'id' in item && 'key' in item);
+}
+function isSavedPromptArray(data: unknown): data is SavedPrompt[] {
+  return Array.isArray(data) && data.every(item => typeof item === 'object' && item !== null && 'id' in item && 'title' in item);
+}
+function isMemoryEntryArray(data: unknown): data is MemoryEntry[] {
+  return Array.isArray(data) && data.every(item => typeof item === 'object' && item !== null && 'id' in item && 'content' in item);
+}
+function isMemoryStats(data: unknown): data is { total: number; weekly: number; byAction: Record<string, number> } {
+  return typeof data === 'object' && data !== null && 'total' in data && 'weekly' in data && 'byAction' in data;
+}
+function isTelemetryData(data: unknown): data is TelemetryData {
+  return typeof data === 'object' && data !== null && 'detectByStrategy' in data && 'anchorReflowCount' in data && 'aiLatencyMs' in data;
+}
+
+const tabItems: { id: Tab; label: string }[] = [
   { id: 'memory', label: 'Memory' },
   { id: 'variables', label: 'Variables' },
+  { id: 'prompts', label: 'Saved' },
 ];
 
-type MemoryEntry = { id: number; content: string; expandedContent: string; action: string; url: string; createdAt: number };
-type Variable = { id: number; key: string; value: string; description: string; createdAt: number; updatedAt: number };
-type SavedPrompt = { id: number; title: string; content: string; folderId: number | null; createdAt: number; updatedAt: number; usageCount: number };
+function formatDate(ts: number) {
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
 
-const s: Record<string, string | ((a: boolean) => string)> = {
-  tabBar: 'display:flex;border-bottom:1px solid #ddd;background:#fff;position:sticky;top:0;z-index:1',
-  item: 'padding:10px 14px;border-bottom:1px solid #eee',
-  title: 'font-weight:600;margin-bottom:2px',
-  sub: 'font-size:12px;color:#888',
-  fab: 'position:fixed;bottom:16px;right:16px;width:44px;height:44px;border-radius:50%;background:#555;color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2)',
-  modal: 'position:fixed;inset:0;background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;z-index:10',
-  modalBody: 'background:#fff;border-radius:12px;padding:20px;width:300px',
-  input: 'width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;font-size:14px',
-  btn: 'padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px',
-};
-
-function VarModal({ onClose }: { onClose: () => void }) {
+function VarDialog({ onDone }: { onDone: () => void }) {
   const [key, setKey] = useState('');
   const [val, setVal] = useState('');
+  const [open, setOpen] = useState(false);
 
   const save = async () => {
     if (!key.trim() || !val.trim()) return;
     await bg({ type: 'saveVariable', key: key.trim(), value: val.trim(), description: '' });
-    onClose();
+    setKey('');
+    setVal('');
+    setOpen(false);
+    onDone();
   };
 
   return (
-    <div style={s.modal as string} onClick={onClose}>
-      <div style={s.modalBody as string} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginBottom: 12 }}>Add Variable</h3>
-        <input style={s.input as string} placeholder="Name (e.g. my_name)" value={key} onInput={(e) => setKey((e.target as HTMLInputElement).value)} />
-        <input style={s.input as string} placeholder="Value" value={val} onInput={(e) => setVal((e.target as HTMLInputElement).value)} />
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button style={{ ...s.btn as any, background: '#eee' }} onClick={onClose}>Cancel</button>
-          <button style={{ ...s.btn as any, background: '#555', color: '#fff' }} onClick={save}>Save</button>
-        </div>
-      </div>
-    </div>
+    <>
+      <Button 
+        size="icon" 
+        className="fixed bottom-4 right-4 z-10 size-11 rounded-full shadow-lg" 
+        onClick={() => setOpen(true)}
+        aria-label="Add new variable"
+      >
+        <PlusIcon />
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Variable</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input 
+              placeholder="Name (e.g. my_name)" 
+              value={key} 
+              onChange={(e) => setKey(e.target.value)} 
+              aria-label="Variable name"
+            />
+            <Input 
+              placeholder="Value" 
+              value={val} 
+              onChange={(e) => setVal(e.target.value)} 
+              aria-label="Variable value"
+            />
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="ghost" 
+              onClick={() => setOpen(false)}
+              aria-label="Cancel adding variable"
+            >Cancel</Button>
+            <Button 
+              onClick={save}
+              aria-label="Save new variable"
+            >Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
 export function App() {
   const [tab, setTab] = useState<Tab>('memory');
   const [vars, setVars] = useState<Variable[]>([]);
-  const [mem, setMem] = useState<{ stats: { total: number; weekly: number; byAction: Record<string, number> }; recent: MemoryEntry[] }>({ stats: { total: 0, weekly: 0, byAction: {} }, recent: [] });
+  const [memStats, setMemStats] = useState<{ total: number; weekly: number; byAction: Record<string, number> }>({ total: 0, weekly: 0, byAction: {} });
+  const [recentMem, setRecentMem] = useState<MemoryEntry[]>([]);
   const [prompts, setPrompts] = useState<SavedPrompt[]>([]);
-  const [showVarModal, setShowVarModal] = useState(false);
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
-
-  useEffect(() => { loadTab(tab); }, [tab]);
 
   const loadTab = async (t: Tab) => {
     if (t === 'variables') {
       const r = await bg({ type: 'listVariables' });
-      if (r.ok) setVars(r.data as Variable[]);
+      if (isSuccessfulResponseWithData(r, isVariableArray)) setVars(r.data);
     }
     if (t === 'memory') {
-      const sr = await bg({ type: 'getMemoryStats' });
-      if (sr.ok) {
-        const { total, weekly, byAction } = sr.data as any;
-        setMem({ stats: { total, weekly, byAction }, recent: [] });
+      const [sr, tr, mr] = await Promise.all([
+        bg({ type: 'getMemoryStats' }),
+        bg({ type: 'getTelemetry' }),
+        bg({ type: 'listRecentMemory', limit: 10 }),
+      ]);
+      if (isSuccessfulResponseWithData(sr, isMemoryStats)) {
+        const { total, weekly, byAction } = sr.data;
+        setMemStats({ total, weekly, byAction });
       }
-      const tr = await bg({ type: 'getTelemetry' });
-      if (tr.ok) setTelemetry(tr.data as TelemetryData);
+      if (isSuccessfulResponseWithData(tr, isTelemetryData)) setTelemetry(tr.data);
+      if (isSuccessfulResponseWithData(mr, isMemoryEntryArray)) setRecentMem(mr.data);
     }
     if (t === 'prompts') {
       const r = await bg({ type: 'listSavedPrompts' });
-      if (r.ok) setPrompts(r.data as SavedPrompt[]);
+      if (isSuccessfulResponseWithData(r, isSavedPromptArray)) setPrompts(r.data);
     }
   };
+
+  useEffect(() => { loadTab(tab); }, [tab]);
 
   const delVar = async (id: number) => {
     await bg({ type: 'deleteVariable', id });
     setVars((v) => v.filter((x) => x.id !== id));
   };
 
+  const delPrompt = async (id: number) => {
+    await bg({ type: 'deleteSavedPrompt', id });
+    setPrompts((p) => p.filter((x) => x.id !== id));
+  };
+
   return (
-    <div>
-      <div style={s.tabBar as string}>
-        {tabs.map((t) => (
-          <div key={t.id} style={{ flex: 1, textAlign: 'center', padding: '10px 0', cursor: 'pointer', fontWeight: tab === t.id ? 600 : 400, borderBottom: tab === t.id ? '2px solid #555' : '2px solid transparent', color: tab === t.id ? '#222' : '#666' }} onClick={() => setTab(t.id)}>{t.label}</div>
-        ))}
-      </div>
-
-      {tab === 'memory' && (
-        <div>
-          <div style={{ padding: '12px 14px', background: '#fff', borderBottom: '1px solid #eee' }}>
-            <div style={s.title as string}>Memory Stats</div>
-            <div style={s.sub as string}>Total: {mem.stats.total} · This week: {mem.stats.weekly}</div>
-          </div>
-          {telemetry && (
-            <div style={{ padding: '12px 14px', background: '#fff', borderBottom: '1px solid #eee' }}>
-              <div style={s.title as string}>Telemetry</div>
-              <div style={s.sub as string}>
-                Detects: {Object.entries(telemetry.detectByStrategy).map(([k, v]) => `${k}:${v}`).join(' · ')}
-              </div>
-              <div style={s.sub as string}>
-                Reflows: {telemetry.anchorReflowCount}
-                {telemetry.aiLatencyMs.count > 0 && ` · AI avg: ${Math.round(telemetry.aiLatencyMs.total / telemetry.aiLatencyMs.count)}ms (${telemetry.aiLatencyMs.count} calls)`}
-              </div>
-            </div>
-          )}
-          {mem.recent.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#999' }}>No entries yet.</div>}
-        </div>
-      )}
-
-      {tab === 'variables' && (
-        <div>
-          {vars.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#999' }}>No variables yet.</div>}
-          {vars.map((v) => (
-            <div key={v.id} style={s.item as string}>
-              <div style={s.title as string}>{'{{' + v.key + '}}'} = {v.value}</div>
-              <div style={s.sub as string}>{v.description || '—'}</div>
-              <button style={{ ...s.btn as any, background: '#e74c3c', color: '#fff', marginTop: 4 }} onClick={() => delVar(v.id)}>Delete</button>
-            </div>
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="flex flex-1 flex-col">
+        <TabsList className="sticky top-0 z-10 mx-3 mt-2 w-auto self-stretch justify-center">
+          {tabItems.map((t) => (
+            <TabsTrigger key={t.id} value={t.id} className="flex-1">{t.label}</TabsTrigger>
           ))}
-          <button style={s.fab as string} onClick={() => setShowVarModal(true)}>+</button>
-          {showVarModal && <VarModal onClose={() => { setShowVarModal(false); loadTab('variables'); }} />}
-        </div>
-      )}
+        </TabsList>
 
-      {tab === 'prompts' && (
-        <div>
-          {prompts.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#999' }}>No saved prompts yet.</div>}
-          {prompts.map((p) => (
-            <div key={p.id} style={s.item as string}>
-              <div style={s.title as string}>{p.title || 'Untitled'}</div>
-              <div style={s.sub as string}>{p.content.slice(0, 100)}{p.content.length > 100 ? '...' : ''}</div>
-            </div>
-          ))}
-        </div>
-      )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className="flex-1 px-3 pb-4 pt-3"
+          >
+            <TabsContent value="memory" className="m-0 space-y-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Memory Stats</CardTitle>
+                  <CardDescription>
+                    Total: {memStats.total} · This week: {memStats.weekly}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              {telemetry && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Telemetry</CardTitle>
+                    <CardDescription>
+                      Detects: {Object.entries(telemetry.detectByStrategy).map(([k, v]) => `${k}:${v}`).join(' · ')}
+                    </CardDescription>
+                    <CardDescription>
+                      Reflows: {telemetry.anchorReflowCount}
+                      {telemetry.aiLatencyMs.count > 0 && ` · AI avg: ${Math.round(telemetry.aiLatencyMs.total / telemetry.aiLatencyMs.count)}ms (${telemetry.aiLatencyMs.count} calls)`}
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+
+              {recentMem.length > 0 && (
+                <div>
+                  <h3 className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground">RECENT</h3>
+                  <div className="space-y-1.5">
+                    {recentMem.map((m) => (
+                      <Card key={m.id}>
+                        <CardHeader className="py-2">
+                          <CardDescription className="line-clamp-2 text-xs">{m.content}</CardDescription>
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
+                            <span>{m.action}</span>
+                            <span>{formatDate(m.createdAt)}</span>
+                          </div>
+                        </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {recentMem.length === 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">No entries yet.</p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="variables" className="m-0 space-y-2">
+              {vars.length === 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">No variables yet.</p>
+              )}
+              {vars.map((v) => (
+                <Card key={v.id}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="truncate font-mono text-sm">{'{{' + v.key + '}}'} = {v.value}</CardTitle>
+                        <CardDescription>{v.description || '—'}</CardDescription>
+                      </div>
+                      <Button 
+                        variant="destructive" 
+                        size="xs" 
+                        onClick={() => delVar(v.id)} 
+                        aria-label={"Delete variable " + v.key}
+                      >Delete</Button>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+              <VarDialog onDone={() => loadTab('variables')} />
+            </TabsContent>
+
+            <TabsContent value="prompts" className="m-0 space-y-2">
+              {prompts.length === 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">No saved prompts yet.</p>
+              )}
+              {prompts.map((p) => (
+                <Card key={p.id}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="truncate text-sm">{p.title || 'Untitled'}</CardTitle>
+                        <CardDescription className="line-clamp-2">{p.content}</CardDescription>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="xs" 
+                        onClick={() => delPrompt(p.id)} 
+                        aria-label={"Delete prompt " + (p.title || 'Untitled')}
+                      >Delete</Button>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </TabsContent>
+          </motion.div>
+        </AnimatePresence>
+      </Tabs>
     </div>
   );
 }

@@ -1,0 +1,7 @@
+export const TELEMETRY_FLUSH_INTERVAL_MS = 60000;
+export const AI_GENERATION_TIMEOUT_MS = 30000;
+export const FAB_SHOW_DELAY_MS = 2000;
+export const DETECTOR_DEBOUNCE_MS = 150;
+export const MEMORY_PRUNE_DAYS = 30;
+export const MAX_MEMORY_ENTRIES = 1000;
+export const WEEK_IN_MS = 7 * 86400000;

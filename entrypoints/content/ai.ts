@@ -1,4 +1,5 @@
 import type { ChipAction } from '../../shared/ai';
+import { AI_GENERATION_TIMEOUT_MS } from '../../shared/constants';
 
 type AIProvider = {
   generate: (action: ChipAction, input: string) => Promise<string>;
@@ -22,7 +23,8 @@ const INSTRUCTIONS: Record<ChipAction, string> = {
 };
 
 async function initPromptAPI(): Promise<AIProvider> {
-  const LM = (globalThis as any).LanguageModel;
+  const LM = (globalThis as unknown as { LanguageModel?: { create: (opts: unknown) => Promise<{ prompt: (text: string) => Promise<string>; destroy: () => void }> } }).LanguageModel;
+  if (!LM) throw new Error('LanguageModel not available');
   const session = await LM.create({
     initialPrompts: [{ role: 'system', content: RARE_SYSTEM }],
     temperature: 0.3,
@@ -30,20 +32,34 @@ async function initPromptAPI(): Promise<AIProvider> {
   });
 
   return {
-    generate: (action: ChipAction, input: string) =>
-      session.prompt(INSTRUCTIONS[action] + input),
+    generate: async (action: ChipAction, input: string) => {
+      const result = await Promise.race([
+        session.prompt(INSTRUCTIONS[action] + input),
+        new Promise<string>((_, reject) =>
+          setTimeout(() => reject(new Error('AI generation timed out')), AI_GENERATION_TIMEOUT_MS),
+        ),
+      ]);
+      return result;
+    },
     destroy: () => session.destroy(),
   };
 }
 
+const FALLBACK_INSTRUCTIONS: Record<ChipAction, string> = {
+  improve: 'Make this more specific, structured, and effective.',
+  concise: 'Keep it brief and direct.',
+  addContext: 'Add relevant context and background.',
+  format: 'Structure this with clear sections.',
+};
+
 function initFallback(): AIProvider {
   return {
-    async generate(_action: ChipAction, input: string) {
+    async generate(action: ChipAction, input: string) {
       if (input.trim().length < 10) return input;
       const expanded = input.endsWith('.') || input.endsWith('?') || input.endsWith('!')
         ? input
         : input + '.';
-      return `${expanded}\n\nPlease provide a thorough, well-structured response with clear reasoning, examples where appropriate, and actionable conclusions.`;
+      return `${expanded}\n\n${FALLBACK_INSTRUCTIONS[action]}`;
     },
     destroy() {},
   };
@@ -51,7 +67,7 @@ function initFallback(): AIProvider {
 
 export async function createAI(): Promise<{ provider: AIProvider; onDevice: boolean }> {
   try {
-    const LM = (globalThis as any).LanguageModel;
+    const LM = (globalThis as unknown as { LanguageModel?: { create: (opts: unknown) => Promise<{ prompt: (text: string) => Promise<string>; destroy: () => void }> } }).LanguageModel;
     if (LM?.create) {
       const provider = await initPromptAPI();
       return { provider, onDevice: true };

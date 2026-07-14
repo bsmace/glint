@@ -1,3 +1,6 @@
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+
 type Props = {
   original: string;
   improved: string;
@@ -5,67 +8,31 @@ type Props = {
   onReject: () => void;
 };
 
-const sectionLabel: Record<string, string> = {
-  fontSize: '11px',
-  fontWeight: '600',
-  letterSpacing: '0.5px',
-  marginBottom: '4px',
-};
-
-const sectionContent: Record<string, string> = {
-  fontSize: '12px',
-  lineHeight: '1.4',
-  whiteSpace: 'pre-wrap',
-  wordBreak: 'break-word',
-  maxHeight: '80px',
-  overflowY: 'auto',
-  padding: '6px 8px',
-  borderRadius: '6px',
-};
-
-const btn: Record<string, string> = {
-  padding: '6px 14px',
-  border: 'none',
-  borderRadius: '8px',
-  cursor: 'pointer',
-  fontSize: '12px',
-  fontWeight: '500',
-};
-
 export function DiffView({ original, improved, onAccept, onReject }: Props) {
   return (
-    <div
-      style={{
-        marginTop: '6px',
-        padding: '8px 10px 10px',
-        background: '#fff',
-        borderTop: '1px solid #e8e8e8',
-      }}
-      onKeyDown={(e) => { if (e.key === 'Escape') onReject(); }}
+    <motion.div
+      className="border-t border-border bg-muted/40 p-3"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
     >
-      <div style={{ marginBottom: '6px' }}>
-        <div style={{ ...sectionLabel, color: '#999' }}>ORIGINAL</div>
-        <div style={{ ...sectionContent, background: '#f5f5f5', color: '#666' }}>{original}</div>
+      <div className="mb-1.5">
+        <div className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground">ORIGINAL</div>
+        <div className="max-h-20 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-muted/40 px-2 py-1.5 text-xs leading-relaxed text-muted-foreground">
+          {original}
+        </div>
       </div>
-      <div style={{ marginBottom: '8px' }}>
-        <div style={{ ...sectionLabel, color: '#2e7d32' }}>IMPROVED</div>
-        <div style={{ ...sectionContent, background: '#f0faf0', color: '#222' }}>{improved}</div>
+      <div className="mb-2">
+        <div className="mb-1 text-[11px] font-semibold tracking-wide text-primary">IMPROVED</div>
+        <div className="max-h-20 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-primary/10 px-2 py-1.5 text-xs leading-relaxed text-foreground">
+          {improved}
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-        <button
-          autoFocus
-          style={{ ...btn, background: '#2e7d32', color: '#fff' }}
-          onClick={onAccept}
-        >
-          Accept
-        </button>
-        <button
-          style={{ ...btn, background: '#eee', color: '#555' }}
-          onClick={onReject}
-        >
-          Reject
-        </button>
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" size="xs" onClick={onReject} aria-label="Reject prompt changes">Reject</Button>
+        <Button variant="default" size="xs" onClick={onAccept} autoFocus aria-label="Accept prompt changes">Accept</Button>
       </div>
-    </div>
+    </motion.div>
   );
 }

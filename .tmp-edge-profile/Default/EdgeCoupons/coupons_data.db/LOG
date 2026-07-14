@@ -1,0 +1,5 @@
+2026/07/14-10:10:39.235 8de8 Creating DB C:\Users\basem.sofan\Downloads\dev\glint\.tmp-edge-profile\Default\EdgeCoupons/coupons_data.db since it was missing.
+2026/07/14-10:10:39.357 8de8 Reusing MANIFEST C:\Users\basem.sofan\Downloads\dev\glint\.tmp-edge-profile\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/07/14-10:10:40.933 16d4 Level-0 table #5: started
+2026/07/14-10:10:40.941 16d4 Level-0 table #5: 682909 bytes OK
+2026/07/14-10:10:40.947 16d4 Delete type=0 #3

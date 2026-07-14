@@ -1,4 +1,6 @@
-import { render } from 'preact';
+import { createRoot } from 'react-dom/client';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { App } from './App';
+import '@/styles/tailwind.css';
 
-render(<App />, document.getElementById('app')!);
+createRoot(document.getElementById('app')!).render(<ErrorBoundary><App /></ErrorBoundary>);

@@ -36,11 +36,20 @@ export type MemoryEntry = {
   createdAt: number;
 };
 
+export type TelemetryEntry = {
+  id: number;
+  detectByStrategy: Record<string, number>;
+  anchorReflowCount: number;
+  aiLatencyMs: { count: number; total: number };
+  createdAt: number;
+};
+
 const db = new Dexie('glint') as Dexie & {
   folders: EntityTable<Folder, 'id'>;
   savedPrompts: EntityTable<SavedPrompt, 'id'>;
   variables: EntityTable<Variable, 'id'>;
   memory: EntityTable<MemoryEntry, 'id'>;
+  telemetry: EntityTable<TelemetryEntry, 'id'>;
 };
 
 db.version(1).stores({
@@ -48,6 +57,7 @@ db.version(1).stores({
   savedPrompts: '++id, folderId, createdAt, updatedAt',
   variables: '++id, key, createdAt',
   memory: '++id, createdAt, action',
+  telemetry: '++id, createdAt',
 });
 
 export default db;

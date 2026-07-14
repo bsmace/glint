@@ -10,8 +10,8 @@ Production arch that hits 100% coverage on ChatGPT, Claude, Gemini, Meta AI, Per
 
 ### 1. Stack - Verified 2026
 
-**Core:** WXT + TypeScript + Preact
-**Isolation:** `createShadowRootUi` - Shadow DOM with `adoptedStyleSheets` gives true bidirectional CSS isolation
+**Core:** WXT + TypeScript + React 19 + shadcn/ui (@base-ui/react) + Tailwind CSS v4 + framer-motion
+**Isolation:** Shadow DOM with `adoptedStyleSheets` + `?inline` CSS import (`CSSStyleSheet.replaceSync`) gives true bidirectional CSS isolation
 **Positioning:** Floating UI - anchors a floating element next to another while staying in view, library to position tooltips, popovers, dropdowns
 **AI:** Chrome Prompt API - `LanguageModel.availability()` returns `available | downloadable | downloading`, uses Gemini Nano, create baseline and clone for tasks, clones are independent. Fallback = local heuristic string transform (no network, no external deps)
 **Storage:** Dexie - local prompt library <10ms search
@@ -78,19 +78,32 @@ entrypoints/
 wxt.config.ts
 ```
 
-### 5. Security & Store Compliance
+### 5. UI Components (added 2026)
+
+| Component | Location | Tech |
+|-----------|----------|------|
+| Button | `components/ui/button.tsx` | shadcn base-nova |
+| Card | `components/ui/card.tsx` | shadcn base-nova |
+| Tabs | `components/ui/tabs.tsx` | shadcn base-nova |
+| Dialog | `components/ui/dialog.tsx` | shadcn base-nova |
+| Input | `components/ui/input.tsx` | shadcn base-nova |
+| Badge | `components/ui/badge.tsx` | shadcn base-nova |
+| Animations | framer-motion | chip bar morph, tab cross-fade |
+| Styling | `styles/tailwind.css` | Tailwind v4 + OKLCH tokens + glint utilities |
+
+### 6. Security & Store Compliance
 
 - Read input only on explicit `Improve` click, not on `input` event - avoids keylogger flag (35% rejections are for inline scripting/CSP violations)
 - Shadow closed + `adoptedStyleSheets` - page cannot read your DOM
 - Local-only badge when using on-device model
 
-### 6. Performance Budget
+### 7. Performance Budget
 
 - Content entry <50KB gzipped
 - `LanguageModel.create()` once at idle, not on focus
 - Dexie cache 20 last improvements = instant for repeat prompts
 
-### 7. Banned Patterns & 3-Tier Security
+### 8. Banned Patterns & 3-Tier Security
 
 #### Chrome Web Store Banned Patterns (2025-2026)
 - `fetch` wrapper / intercepting host network requests

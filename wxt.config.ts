@@ -1,14 +1,12 @@
 import { defineConfig } from 'wxt';
-import preact from '@preact/preset-vite';
 
 export default defineConfig({
-  vite: () => ({
-    plugins: [preact()],
-  }),
+  modules: ['@wxt-dev/module-react'],
   manifest: {
     name: 'Glint',
     description: 'Type less, mean more - prompt assistant',
-    permissions: ['storage', 'sidePanel'],
+    permissions: ['storage', 'sidePanel', 'scripting'],
+    host_permissions: ['*://m365.cloud.microsoft/*'],
     side_panel: {
       default_path: 'sidepanel.html',
     },
@@ -18,5 +16,8 @@ export default defineConfig({
         description: 'Toggle Glint side panel',
       },
     },
+  },
+  alias: {
+    '@': '.',
   },
 });
