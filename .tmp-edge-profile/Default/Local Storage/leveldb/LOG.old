@@ -1,6 +1,0 @@
-2026/07/14-10:14:12.011 5d4c Reusing MANIFEST C:\Users\basem.sofan\Downloads\dev\glint\.tmp-edge-profile\Default\Local Storage\leveldb/MANIFEST-000001
-2026/07/14-10:14:12.035 5d4c Recovering log #11
-2026/07/14-10:14:12.050 5d4c Reusing old log C:\Users\basem.sofan\Downloads\dev\glint\.tmp-edge-profile\Default\Local Storage\leveldb/000011.log 
-2026/07/14-10:14:21.971 9c7c Level-0 table #16: started
-2026/07/14-10:14:21.994 9c7c Level-0 table #16: 74889 bytes OK
-2026/07/14-10:14:22.001 9c7c Delete type=0 #11

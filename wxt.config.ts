@@ -25,4 +25,15 @@ export default defineConfig({
   alias: {
     '@': '.',
   },
+  vite: () => ({
+    build: {
+      target: 'es2020',
+      cssMinify: 'esbuild',
+      rollupOptions: {
+        output: {
+          manualChunks: undefined,
+        },
+      },
+    },
+  }),
 });

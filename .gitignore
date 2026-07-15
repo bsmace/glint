@@ -1,5 +1,7 @@
 node_modules
 .output
+.wxt
 *.log
 .DS_Store
-.tmp-edge-profile
+.tmp-edge-profile/
+.opencode/

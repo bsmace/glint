@@ -11,7 +11,8 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "postinstall": "wxt prepare",
-    "typecheck": "wxt prepare && tsc --noEmit"
+    "typecheck": "wxt prepare && tsc --noEmit",
+    "analyze": "node scripts/analyze-bundle.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.0",
