@@ -57,9 +57,8 @@ async function initialize(): Promise<void> {
  * Check if GlintBar is currently attached to an input
  */
 function glintBarIsAttached(): boolean {
-  // This would need a method on glintBar to check attachment state
-  // For now, we'll use a simple heuristic
-  return false;
+  // Delegate to GlintBar instance for accurate attachment state
+  return glintBar.isAttached();
 }
 
 // Initialize when DOM is ready

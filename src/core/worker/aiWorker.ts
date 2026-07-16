@@ -218,7 +218,7 @@ class AIOrchestrator {
       return [];
     }
 
-    // Simple retrieval - in production would use proper sorting
+    // Retrieve all items and sort by timestamp (newest first)
     const all = await search(this.oramaDB, {
       term: '',
       limit: limit * 2, // Get extra to filter
