@@ -1,8 +1,0 @@
-blank_issues_enabled: true
-contact_links:
-  - name: Glint Discussion
-    url: https://github.com/bsmace/glint/discussions
-    about: Ask questions, share prompts, or discuss ideas
-  - name: Privacy Policy
-    url: https://github.com/bsmace/glint/blob/main/PRIVACY.md
-    about: Learn how Glint handles your data
