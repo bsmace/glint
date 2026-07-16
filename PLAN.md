@@ -1,55 +1,32 @@
-## Plan - 4 Week Ship to Chrome Web Store
+# Implementation Plan — Weekly Review Reminder
 
-### Week 1: Foundation - Isolation & Injector
-**Goal:** Extension injects without breaking any chat app CSS.
+## Steps (Sequential)
 
-**Tasks:**
-- Init WXT `pnpm create wxt@latest` + React + TypeScript
-- Implement `createShadowRootUi` with `mode:'closed'`, `position:'overlay'`, `isolateEvents:true` - verified true bidirectional isolation
-- Add `all:initial` + px-only system, fix `rem` bug that makes UI wrong size on Reddit/ChatGPT
-- Content script `world: ISOLATED`, `run_at: document_idle`, entry <50KB
+### 1. DATA: new Dexie table + service functions
+- Add `settings` table to `shared/db.ts` (version 5): `++id, &key` with `{ key, value }` — generic key-value for preferences
+- Add `setSetting(key, value)`, `getSetting(key)`, `getAllSettings()` to `shared/services.ts`
+- Background alarm management: `scheduleWeeklyReview()` creates/deletes `chrome.alarms`
+- New `BackgroundRequest` types: `'setSetting'`, `'getSetting'`, `'dismissReview'`, `'getStalePrompts'`, `'getStaleMemory'`
 
-**Deliverable:** Blank chip bar renders on 5 test sites, no CSS bleed.
+### 2. API: new BackgroundRequest types + handlers
+- Extend `BackgroundRequest` discriminated union in `shared/messaging.ts`
+- Implement handlers in `background.ts` switch statement
+- Move alarm listener to `entrypoints/background.ts`
 
-### Week 2: Detection - 100% Attach
-**Goal:** Never miss input, even when ChatGPT recreates textarea after every message.
+### 3. UI: Review tab in side panel
+- Add `'review'` to `Tab` type in `App.tsx`
+- Add tab item + `TabsContent` block with:
+  - Stale prompts section (checkbox list + bulk delete button)
+  - Stale memory section
+  - "All caught up" empty state
+  - Opt-out toggle at bottom of tab
+- Badge dot on Review tab when there are stale items
 
-**Tasks:**
-- Build adapter map: `chatgpt.com -> #prompt-textarea`, `claude.ai -> div[contenteditable][data-placeholder]`
-- Add ARIA fallback `getByRole('textbox')` + heuristic bottom 40%
-- Implement `focusin` 0ms attach - catches `contentEditable==='true'` + `document.activeElement`
-- Dual `MutationObserver`: body subtree + chat container parent, no debounce on focusin
-- FAB fallback after 2000ms if no anchor
+### 4. INTEGRATION: alarm ↔ sidepanel wiring
+- `chrome.alarms.onAlarm` listener in background sets `pendingReview: true` in settings table
+- Sidepanel `useEffect` on mount checks `getSetting('pendingReview')`, shows badge
+- On Chrome: alarm handler also calls `chrome.sidePanel.open()` + sends message to toggle review tab
+- On Firefox: alarm handler just sets pendingReview flag; sidepanel badge indicates pending review on next open
 
-**Acceptance:** `detect_success` >98% without FAB on manual test matrix.
-
-### Week 3: Anchor + AI Engine
-**Goal:** Chip stays glued, improve in <800ms, 0 cost.
-
-**Tasks:**
-- Floating UI `computePosition` + `autoUpdate` + middleware `offset(8), flip(), shift()` - verified anchor positioning library
-- `ResizeObserver` + Navigation API listener for SPA
-- AI: `LanguageModel.availability()` check, base session create once, `clone()` per task - verified best practice original remains unchanged, clones independent
-- Prompt templates: Improve, Concise, Add Context, Format as Table
-- Cache: Orama index + Dexie, `hash(original)` dedup
-
-**Acceptance:** Type, send, type again - chip reappears <100ms, improve uses clone not create.
-
-### Week 4: UX Polish + Store Ship
-**Goal:** Feels native like 1Password, passes review.
-
-**Tasks:**
-- Placement `top-start`, 36px bar, diff view Accept not auto-replace
-- Keyboard: Tab cycle, Enter apply, Esc dismiss
-- Security: Read input only on explicit click, show "Runs on-device" badge
-- Fix CSP: No eval, no remote code, no MAIN world - 35% rejections are CSP violations
-- Telemetry: `detect_success_by_strategy`, `ai_latency_ms`
-- Store assets: screenshots on ChatGPT/Claude, 1280x800, privacy policy
-
-**Ship Checklist:**
-- [ ] <50KB entry, closed shadow, px units
-- [ ] focusin + dual observer + FAB
-- [ ] Floating UI top-start + autoUpdate
-- [ ] availability() + clone pattern
-
-**Day 29-30:** Submit to Chrome Web Store with remote adapter config JSON for hotfixing new DOMs without update.
+### 5. VERIFY: build + typecheck both targets
+- `pnpm build && pnpm build:firefox && pnpm typecheck`

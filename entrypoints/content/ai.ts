@@ -1,8 +1,11 @@
 import type { ChipAction } from '../../shared/ai';
 import { AI_GENERATION_TIMEOUT_MS } from '../../shared/constants';
 
+type AISession = { prompt: (text: string) => Promise<string>; destroy: () => void };
+type LMFactory = { create: (opts: unknown) => Promise<AISession> };
+
 type AIProvider = {
-  generate: (action: ChipAction, input: string) => Promise<string>;
+  generate: (action: ChipAction, input: string, instruction?: string) => Promise<string>;
   destroy: () => void;
 };
 
@@ -15,33 +18,61 @@ Expand — Add relevant context, examples, or output format instructions.
 
 Output ONLY the rewritten prompt. No labels, no explanation, no metadata.`;
 
-const INSTRUCTIONS: Record<ChipAction, string> = {
+export const INSTRUCTIONS: Record<ChipAction, string> = {
   improve: `Rewrite this prompt using the RARE framework. Make it specific, structured, and effective.\n\n`,
   concise: `Rewrite this prompt to be shorter and more direct while preserving the core intent. Remove redundancy.\n\n`,
   addContext: `Expand this prompt with relevant context, background, and specific constraints to help the AI understand the scenario.\n\n`,
   format: `Restructure this prompt for clarity. Use sections, bullet points, step numbering, or clear delimiters.\n\n`,
 };
 
+function getLM(): LMFactory | null {
+  return (globalThis as unknown as { LanguageModel?: LMFactory }).LanguageModel ?? null;
+}
+
 async function initPromptAPI(): Promise<AIProvider> {
-  const LM = (globalThis as unknown as { LanguageModel?: { create: (opts: unknown) => Promise<{ prompt: (text: string) => Promise<string>; destroy: () => void }> } }).LanguageModel;
+  const LM = getLM();
   if (!LM) throw new Error('LanguageModel not available');
-  const session = await LM.create({
+  const base = await LM.create({
     initialPrompts: [{ role: 'system', content: RARE_SYSTEM }],
     temperature: 0.3,
     topK: 3,
   });
 
+  const promptWithInstruction = (session: AISession, action: ChipAction, input: string, instruction?: string) => {
+    const prefix = instruction ?? INSTRUCTIONS[action];
+    return session.prompt(prefix + input);
+  };
+
+  if (!('clone' in base)) {
+    return {
+      generate: async (action: ChipAction, input: string, instruction?: string) => {
+        const result = await Promise.race([
+          promptWithInstruction(base, action, input, instruction),
+          new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error('AI generation timed out')), AI_GENERATION_TIMEOUT_MS),
+          ),
+        ]);
+        return result;
+      },
+      destroy: () => base.destroy(),
+    };
+  }
+
   return {
-    generate: async (action: ChipAction, input: string) => {
-      const result = await Promise.race([
-        session.prompt(INSTRUCTIONS[action] + input),
-        new Promise<string>((_, reject) =>
-          setTimeout(() => reject(new Error('AI generation timed out')), AI_GENERATION_TIMEOUT_MS),
-        ),
-      ]);
-      return result;
+    generate: async (action: ChipAction, input: string, instruction?: string) => {
+      const clone = await (base as unknown as { clone: () => Promise<AISession> }).clone();
+      try {
+        return await Promise.race([
+          promptWithInstruction(clone, action, input, instruction),
+          new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error('AI generation timed out')), AI_GENERATION_TIMEOUT_MS),
+          ),
+        ]);
+      } finally {
+        clone.destroy();
+      }
     },
-    destroy: () => session.destroy(),
+    destroy: () => base.destroy(),
   };
 }
 
@@ -54,12 +85,12 @@ const FALLBACK_INSTRUCTIONS: Record<ChipAction, string> = {
 
 function initFallback(): AIProvider {
   return {
-    async generate(action: ChipAction, input: string) {
+    async generate(action: ChipAction, input: string, instruction?: string) {
       if (input.trim().length < 10) return input;
       const expanded = input.endsWith('.') || input.endsWith('?') || input.endsWith('!')
         ? input
         : input + '.';
-      return `${expanded}\n\n${FALLBACK_INSTRUCTIONS[action]}`;
+      return `${expanded}\n\n${instruction ?? FALLBACK_INSTRUCTIONS[action]}`;
     },
     destroy() {},
   };

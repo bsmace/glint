@@ -28,7 +28,7 @@ A browser extension that overlays on any chat AI app to improve prompts instantl
 **FR-4 AI Engine**
 - Check: `await LanguageModel.availability()` returns `available | downloadable | downloading | unavailable`
 - Best practice: Create baseline once, `await base.clone()` per task - clones are independent, original unchanged, DO clone for each new task
-- Fallback: Transformers.js `Xenova/gemma-2b-it` WASM if unavailable
+- Fallback: Heuristic string transform (`input + instruction` appended with basic punctuation normalization) when Prompt API unavailable
 - Never read prompt on `input` event, only on explicit Improve click
 
 **FR-5 UX**

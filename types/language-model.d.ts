@@ -1,20 +1,21 @@
-interface LanguageModelPromptOptions {
-  initialPrompts?: Array<{ role: string; content: string }>;
-  temperature?: number;
-  topK?: number;
-}
-
-interface LanguageModelSession {
+interface AISession {
   prompt(text: string): Promise<string>;
   destroy(): void;
+  clone(): Promise<AISession>;
+}
+
+interface LanguageModelFactory {
+  create(options: {
+    initialPrompts?: { role: string; content: string }[];
+    temperature?: number;
+    topK?: number;
+  }): Promise<AISession>;
+}
+
+interface LanguageModelAvailability {
+  LanguageModel?: LanguageModelFactory;
 }
 
 declare global {
-  interface Window {
-    LanguageModel?: {
-      create(options: LanguageModelPromptOptions): Promise<LanguageModelSession>;
-    };
-  }
+  var LanguageModel: LanguageModelFactory | undefined;
 }
-
-export {};

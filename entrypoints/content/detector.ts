@@ -1,11 +1,7 @@
 import { FAB_SHOW_DELAY_MS, DETECTOR_DEBOUNCE_MS } from '../../shared/constants';
+import type { AdapterEntry as Adapter } from '../../shared/db';
 
-export type Adapter = {
-  domain: string;
-  selector: string;
-};
-
-const adapters: Adapter[] = [
+const DEFAULT_ADAPTERS: Adapter[] = [
   { domain: 'chatgpt.com', selector: '#prompt-textarea' },
   { domain: 'claude.ai', selector: 'div[contenteditable="true"][data-placeholder]' },
   { domain: 'gemini.google.com', selector: 'div[contenteditable="true"][role="textbox"]' },
@@ -15,9 +11,19 @@ const adapters: Adapter[] = [
   { domain: 'm365.cloud.microsoft', selector: '[contenteditable="true"][role="textbox"]' },
 ];
 
+let adapters: Adapter[] = DEFAULT_ADAPTERS;
+
+export function setAdapters(overrides: Adapter[]) {
+  const map = new Map(DEFAULT_ADAPTERS.map(a => [a.domain, a]));
+  for (const a of overrides) {
+    map.set(a.domain, a);
+  }
+  adapters = [...map.values()];
+}
+
 function matchAdapter(): Adapter | null {
   const host = location.hostname.replace('www.', '');
-  return adapters.find((a) => host.includes(a.domain)) ?? null;
+  return adapters.find((a) => host === a.domain || host.endsWith('.' + a.domain)) ?? null;
 }
 
 function ariaTextbox(): HTMLElement | null {
@@ -54,7 +60,9 @@ export function detect(el?: HTMLElement): DetectResult {
   const adapter = matchAdapter();
   if (adapter) {
     const found = document.querySelector<HTMLElement>(adapter.selector);
-    if (found) return { el: found, strategy: 'adapter' };
+    if (found && found.matches('textarea, [contenteditable="true"], [role="textbox"], input[type="text"], input[type="search"]')) {
+      return { el: found, strategy: 'adapter' };
+    }
   }
 
   const aria = ariaTextbox();
