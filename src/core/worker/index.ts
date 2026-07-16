@@ -1,8 +1,10 @@
 /**
  * Glint Core - Worker Entry Point
- * Placeholder for AI processing worker (Phase 2: Kernel).
- * Will use window.ai API for native AI integration.
+ * Exports AI Worker API types and initialization
  */
 
-// TODO: Implement AI Worker for Phase 2
-// export { AIWorker } from './ai-worker';
+export type { WorkerAPI } from '../../lib/ai/workerBridge';
+export { workerBridge } from '../../lib/ai/workerBridge';
+
+// Re-export worker for CRXJS entry point
+import './aiWorker';
