@@ -92,7 +92,6 @@ export class GeminiStrategy implements DetectionStrategy {
     const selectors = [
       'button[aria-label*="send"]',
       'button[aria-label*="submit"]',
-      'button svg',
       '[class*="send-button"]',
       '[data-testid*="send"]',
       'form button[type="submit"]',
@@ -108,6 +107,15 @@ export class GeminiStrategy implements DetectionStrategy {
       }
     }
 
+    // Check for SVG icons inside buttons
+    const svgButtons = root.querySelectorAll('button svg, button [role="img"]');
+    for (const svg of Array.from(svgButtons)) {
+      const parentBtn = svg.closest('button') as HTMLElement | null;
+      if (parentBtn && this.isValidSendButton(parentBtn)) {
+        return parentBtn;
+      }
+    }
+
     return null;
   }
 
@@ -116,7 +124,9 @@ export class GeminiStrategy implements DetectionStrategy {
    */
   private isValidSendButton(element: HTMLElement): boolean {
     const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || '';
-    const className = element.className?.toLowerCase() || '';
+    // Safely get className - use getAttribute to avoid issues with SVG elements
+    const classAttr = element.getAttribute('class');
+    const className = typeof classAttr === 'string' ? classAttr.toLowerCase() : '';
     const tagName = element.tagName.toLowerCase();
     const parentForm = element.closest('form');
 
@@ -126,11 +136,6 @@ export class GeminiStrategy implements DetectionStrategy {
       ariaLabel.includes('submit') ||
       className.includes('send')
     ) {
-      return true;
-    }
-
-    // SVG icons inside button within a form (typical Gemini pattern)
-    if (tagName === 'svg' && parentForm) {
       return true;
     }
 

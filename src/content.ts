@@ -3,9 +3,9 @@
  * Initializes detection engine and UI overlay
  */
 
-import { detectionManager } from '../core/engine/DetectionManager';
-import { glintBar } from '../ui/overlay/GlintBar';
-import { remoteAdapterManager } from '../adapters/remoteAdapter';
+import { detectionManager } from './core/engine/DetectionManager';
+import { glintBar } from './ui/overlay/GlintBar';
+import { remoteAdapterManager } from './adapters/remoteAdapter';
 import {
   ChatGPTStrategy,
   ClaudeStrategy,
@@ -13,7 +13,7 @@ import {
   isChatGPTSite,
   isClaudeSite,
   isGeminiSite,
-} from '../adapters/sites';
+} from './adapters/sites';
 
 /**
  * Initialize Glint on page load
@@ -70,6 +70,11 @@ async function initialize(): Promise<void> {
 function registerSiteStrategies(): void {
   const hostname = window.location.hostname;
 
+  // Remove any existing site-specific strategies to prevent duplicates
+  detectionManager.removeStrategy('chatgpt');
+  detectionManager.removeStrategy('claude');
+  detectionManager.removeStrategy('gemini');
+
   if (isChatGPTSite(hostname)) {
     detectionManager.addStrategy(new ChatGPTStrategy());
     console.log('[Glint] Registered ChatGPT strategy');
@@ -101,11 +106,14 @@ if (document.readyState === 'loading') {
 
 // Handle page navigation (SPA support)
 let lastUrl = location.href;
+let lastHostname = location.hostname;
 new MutationObserver(() => {
   const url = location.href;
-  if (url !== lastUrl) {
+  const hostname = location.hostname;
+  if (url !== lastUrl || hostname !== lastHostname) {
     lastUrl = url;
-    console.log('[Glint] URL changed, re-initializing...');
+    lastHostname = hostname;
+    console.log('[Glint] URL/hostname changed, re-initializing...');
     glintBar.detach();
     // Re-register strategies for new site
     detectionManager.clearCache();
