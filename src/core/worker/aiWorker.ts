@@ -21,6 +21,14 @@ interface PromptSchema {
 }
 
 /**
+ * Extended PromptHistoryItem that includes worker-specific fields
+ */
+interface WorkerPromptHistoryItem extends Omit<PromptHistoryItem, 'site' | 'tags'> {
+  mode: 'improve' | 'concise' | 'context' | 'format';
+  characterCount: number;
+}
+
+/**
  * AI Worker API exposed via Comlink
  */
 class AIWorker {
@@ -108,8 +116,8 @@ class AIWorker {
 
       return {
         success: true,
+        result: improvedText,
         originalText: text,
-        improvedText,
         mode,
         characterCount: improvedText.length,
       };
@@ -148,7 +156,7 @@ class AIWorker {
         mode: hit.document.mode,
         timestamp: hit.document.timestamp,
         characterCount: hit.document.characterCount,
-      }));
+      } as WorkerPromptHistoryItem));
     } catch (error) {
       console.error('[AIWorker] Search error:', error);
       return [];
@@ -158,14 +166,31 @@ class AIWorker {
   /**
    * Get recent prompt history
    */
-  async getRecentHistory(limit: number = 10): Promise<PromptHistoryItem[]> {
+  async getRecentHistory(limit: number = 10): Promise<WorkerPromptHistoryItem[]> {
     if (!this.db || !this.isInitialized) {
       return [];
     }
 
     try {
-      // Get all documents and sort by timestamp
-      const allDocs: PromptSchema[] = (this.db as any).data.docs;
+      // Get all documents defensively and sort by timestamp
+      const dbAny = this.db as any;
+      const docs = dbAny?.data?.docs;
+      
+      if (!docs || !Array.isArray(docs)) {
+        return [];
+      }
+      
+      // Create a defensive copy before sorting
+      const allDocs: PromptSchema[] = [...docs].filter(
+        (doc): doc is PromptSchema => 
+          doc && 
+          typeof doc.id === 'string' && 
+          typeof doc.originalText === 'string' &&
+          typeof doc.improvedText === 'string' &&
+          typeof doc.mode === 'string' &&
+          typeof doc.timestamp === 'number' &&
+          typeof doc.characterCount === 'number'
+      );
       
       return allDocs
         .sort((a, b) => b.timestamp - a.timestamp)
@@ -296,16 +321,24 @@ class AIWorker {
 
     return {
       success: true,
+      result: improvedText,
       originalText: text,
-      improvedText,
       mode,
       characterCount: improvedText.length,
     };
   }
 }
 
-// Expose the worker API via Comlink
-const workerInstance = new AIWorker();
-expose(workerInstance);
+// Handle SharedWorker connections via onconnect
+self.onconnect = (event: MessageEvent) => {
+  const port = event.ports[0];
+  const workerInstance = new AIWorker();
+  expose(workerInstance, port);
+  port.start();
+};
 
-export default workerInstance;
+// Also expose for dedicated worker fallback
+const dedicatedWorkerInstance = new AIWorker();
+expose(dedicatedWorkerInstance);
+
+export default dedicatedWorkerInstance;
