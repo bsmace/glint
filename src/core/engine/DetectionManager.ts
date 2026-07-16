@@ -167,9 +167,9 @@ export class ContentEditableStrategy implements DetectionStrategy {
       }
     }
     
-    // Also check if it's a simple single-line or multi-line input
+    // Check if it's a minimal input structure (typical for chat interfaces)
     const childCount = element.childElementCount;
-    return childCount <= 3; // Chat inputs are usually simple
+    return childCount <= 3; // Chat inputs typically have minimal child elements
   }
 
   private findNearbySendButton(element: HTMLElement, root: Document | ShadowRoot): HTMLElement | null {

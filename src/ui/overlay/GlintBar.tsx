@@ -86,6 +86,13 @@ export class GlintBar {
   }
 
   /**
+   * Check if currently attached to an input
+   */
+  isAttached(): boolean {
+    return this.detectedInput !== null;
+  }
+
+  /**
    * Detach from current input
    */
   detach(): void {
