@@ -6,9 +6,9 @@ const manifest = defineManifest({
   description: 'Invisible browser intelligence layer for AI chat inputs',
   version: '1.0.0',
   icons: {
-    '16': 'icons/icon16.png',
-    '48': 'icons/icon48.png',
-    '128': 'icons/icon128.png',
+    '16': 'icons/icon16.svg',
+    '48': 'icons/icon48.svg',
+    '128': 'icons/icon128.svg',
   },
   permissions: [
     'ai',
